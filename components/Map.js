@@ -25,13 +25,10 @@ for (let i = 0; i < 20; i++) {
 
 
 
-export default function Map({data, long, lat}) {
+export default function Map({data, long, lat, onRegionChange}) {
   const mapRef = useRef();
   const navigation = useNavigation();
 
-  const onRegionChange = (region) => {
-    console.log(region);
-  };
   const showLocationsOfInterest = () => {
     return data.map((item, index) => {
       return (
@@ -54,6 +51,7 @@ export default function Map({data, long, lat}) {
                     call({number: item.phone, prompt: false, skipCanOpen: true}).catch(console.error)
                   }}
                   >
+
                   <Text className={'mt-1 text-blue-600'}>{item.phone}</Text>
                 </TouchableOpacity>
 
@@ -82,19 +80,11 @@ export default function Map({data, long, lat}) {
         style={styles.map}
         onRegionChange={onRegionChange}
         initialRegion={{
-          latitude: lat,
+          latitude: 37.5665,
           latitudeDelta: 1,
-          longitude: long,
+          longitude: 126.9780,
           longitudeDelta: 1,
         }}
-        region={
-          {
-            latitude: lat,
-            latitudeDelta: 1,
-            longitude: long,
-            longitudeDelta: 1,
-          }
-        }
       >
         {showLocationsOfInterest()}
       </MapView>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   StyleSheet,
   SafeAreaView,
@@ -21,16 +21,51 @@ export default function HomeScreen() {
   const [long, setLong] = useState(126.9780);
   const [lat, setLat] = useState(37.5665);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const [courts , setCourts] = useState([])
   const handleTabChange = (tab) => {
     setCurrentTab(tab);
   };
 
-  const {data, isLoading} = useQuery(['courts'], async () => {
-    const {data, error} = await supabase.from('courts').select('*')
-    return data.map((court) => {
-      return JSON.parse(court.data)
-    })
+  const [region, setRegion] = useState({
+    latitude: 37.5665,
+    longitude: 126.9780,
+    latitudeDelta: 1,
+    longitudeDelta: 1,
   })
+
+  const fetchCourts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('courts')
+        .select('*')
+        .gt('long', region.longitude - region.longitudeDelta)
+        .lt('long', region.longitude + region.longitudeDelta)
+        .gt('lat', region.latitude - region.latitudeDelta)
+        .lt('lat', region.latitude + region.latitudeDelta);
+
+      if (error) throw error;
+
+      return data.map((court) => {
+        return {
+          ...JSON.parse(court.data),
+          location: {
+            longitude: court.long,
+            latitude: court.lat,
+          }
+        };
+      });
+    } catch (error) {
+      console.error("Error fetching courts:", error.message);
+      return [];  // Return an empty array as a default value
+    }
+  }
+
+
+  const { isLoading } = useQuery(['courts'], () => fetchCourts(), {
+    onSuccess: (data) => {
+      setCourts(data);
+    }
+  });
 
   const handleLocateMe = async () => {
     setIsFetchingLocation(true); // Start loading indicator
@@ -41,12 +76,30 @@ export default function HomeScreen() {
     }
     const location = await Location.getCurrentPositionAsync({});
 
-    console.log(`long: ${location.coords.longitude}, lat: ${location.coords.latitude}`)
     setLong(location.coords.longitude)
     setLat(location.coords.latitude)
     setIsFetchingLocation(false); // Stop loading indicator once location is fetched
 
   }
+
+  function debounce(func, delay) {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), delay);
+    };
+  }
+
+
+  function onRegionChange(region) {
+    setRegion(region)
+    fetchCourts()
+      .then((data) => {
+        setCourts(data);
+      })
+  }
+
+  const debouncedOnRegionChange = debounce(onRegionChange, 300);
 
   if (isLoading) {
     return (
@@ -55,6 +108,7 @@ export default function HomeScreen() {
       </View>
     )
   }
+
   return (
     <View style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 0, backgroundColor: '#FBFCFF' }} />
@@ -86,13 +140,18 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        <GroupTabs onTabChange={handleTabChange} numOfCourts={data.length} />
+        <GroupTabs onTabChange={handleTabChange} numOfCourts={courts.length} />
 
         <View style={styles.placeholder}>
-          {currentTab === 0 ? <Map data={data}
-          long={long}
-          lat={lat}
-          /> : <List data={data}/>}
+          {currentTab === 0 ?
+            <Map
+              data={courts}
+              long={long}
+              lat={lat}
+              onRegionChange={debouncedOnRegionChange}
+            />
+            :
+            <List data={courts}/>}
         </View>
         <TouchableOpacity
           className="absolute w-14 h-14 items-center justify-center right-5 bottom-5 bg-blue-500 rounded-full"
