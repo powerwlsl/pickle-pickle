@@ -29,7 +29,7 @@ export default function FormScreen() {
         }
       ])
 
-    Alert.alert('등록되었습니다.')
+    Alert.alert('등록 요청되었습니다.')
     navigation.navigate('Home')
   };
   return (
