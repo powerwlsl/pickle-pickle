@@ -1,16 +1,10 @@
-import React, {useEffect, useState} from 'react';
-import {
-  StyleSheet,
-  SafeAreaView,
-  View,
-  TouchableOpacity,
-  TextInput, ActivityIndicator,
-} from 'react-native';
+import React, {useState} from 'react';
+import {ActivityIndicator, SafeAreaView, StyleSheet, TextInput, TouchableOpacity, View,} from 'react-native';
 import FeatherIcon from 'react-native-vector-icons/Feather';
 import Map from '../components/Map';
 import GroupTabs from '../components/GroupTabs';
 import List from '../components/List';
-import { useNavigation } from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 import {useQuery} from "@tanstack/react-query";
 import {supabase} from "../lib/supabase";
 import * as Location from 'expo-location';
@@ -18,8 +12,6 @@ import * as Location from 'expo-location';
 export default function HomeScreen() {
   const [currentTab, setCurrentTab] = useState(0);
   const navigation = useNavigation();
-  const [long, setLong] = useState(126.9780);
-  const [lat, setLat] = useState(37.5665);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [courts , setCourts] = useState([])
   const handleTabChange = (tab) => {
@@ -33,17 +25,22 @@ export default function HomeScreen() {
     longitudeDelta: 1,
   })
 
-  const fetchCourts = async () => {
+  const fetchCourts = async (newRegion) => {
+    const r = newRegion || region;
     try {
+      setIsFetchingLocation(true)
       const { data, error } = await supabase
         .from('courts')
         .select('*')
-        .gt('long', region.longitude - region.longitudeDelta)
-        .lt('long', region.longitude + region.longitudeDelta)
-        .gt('lat', region.latitude - region.latitudeDelta)
-        .lt('lat', region.latitude + region.latitudeDelta);
+        .gt('long', r.longitude - r.longitudeDelta)
+        .lt('long', r.longitude + r.longitudeDelta)
+        .gt('lat', r.latitude - r.latitudeDelta)
+        .lt('lat', r.latitude + r.latitudeDelta);
 
+      setIsFetchingLocation(false)
       if (error) throw error;
+      // Return an empty array as a default value
+      if (data.length === 0)  return [];
 
       return data.map((court) => {
         return {
@@ -54,12 +51,11 @@ export default function HomeScreen() {
           }
         };
       });
+
     } catch (error) {
-      console.error("Error fetching courts:", error.message);
       return [];  // Return an empty array as a default value
     }
   }
-
 
   const { isLoading } = useQuery(['courts'], () => fetchCourts(), {
     onSuccess: (data) => {
@@ -76,10 +72,20 @@ export default function HomeScreen() {
     }
     const location = await Location.getCurrentPositionAsync({});
 
-    setLong(location.coords.longitude)
-    setLat(location.coords.latitude)
-    setIsFetchingLocation(false); // Stop loading indicator once location is fetched
+    const newRegion = {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+      latitudeDelta: 1,
+      longitudeDelta: 1,
+    }
+    setRegion(newRegion)
 
+    fetchCourts(newRegion)
+      .then((data) => {
+        setCourts(data);
+      })
+
+    setIsFetchingLocation(false);
   }
 
   function debounce(func, delay) {
@@ -93,7 +99,7 @@ export default function HomeScreen() {
 
   function onRegionChange(region) {
     setRegion(region)
-    fetchCourts()
+    fetchCourts(region)
       .then((data) => {
         setCourts(data);
       })
@@ -103,7 +109,7 @@ export default function HomeScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
+      <View style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center', zIndex: 1000, backgroundColor: 'rgba(255,255,255,0.8)'}}>
         <ActivityIndicator size="large" color="#3EC795" />
       </View>
     )
@@ -145,9 +151,8 @@ export default function HomeScreen() {
         <View style={styles.placeholder}>
           {currentTab === 0 ?
             <Map
+              region={region}
               data={courts}
-              long={long}
-              lat={lat}
               onRegionChange={debouncedOnRegionChange}
             />
             :

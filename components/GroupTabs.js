@@ -11,8 +11,8 @@ import {
 export default function GroupTabs({ onTabChange, numOfCourts }) {
   const [value, setValue] = React.useState(0);
   const tabs = [
-    { name: 'Map', badge: numOfCourts},
-    { name: 'List', badge: numOfCourts }
+    { name: 'Map'},
+    { name: 'List' }
   ];
 
   useEffect(() => {
@@ -37,21 +37,19 @@ export default function GroupTabs({ onTabChange, numOfCourts }) {
                 <Text style={[styles.text, isActive && { color: '#6366f1' }]}>
                   {item.name}
                 </Text>
-                {item.badge && (
-                  <View
+                <View
+                  style={[
+                    styles.badge,
+                    isActive && { backgroundColor: '#e0e7ff' },
+                  ]}>
+                  <Text
                     style={[
-                      styles.badge,
-                      isActive && { backgroundColor: '#e0e7ff' },
+                      styles.badgeText,
+                      isActive && { color: '#6366f1' },
                     ]}>
-                    <Text
-                      style={[
-                        styles.badgeText,
-                        isActive && { color: '#6366f1' },
-                      ]}>
-                      {item.badge}
-                    </Text>
-                  </View>
-                )}
+                    {numOfCourts}
+                  </Text>
+                </View>
               </View>
             </TouchableWithoutFeedback>
           </View>

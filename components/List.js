@@ -100,7 +100,7 @@ export default function List({data}) {
                       <FeatherIcon color="#7B7C7E" name="phone" size={14} />
                       <TouchableOpacity
                         onPress={() => {
-                          call({number: phone, prompt: false, skipCanOpen: true}).catch(console.error)
+                          call({number: item.phone, prompt: false, skipCanOpen: true}).catch(console.error)
                         }}
                       >
                         <Text className="ml-2 text-blue-600">
