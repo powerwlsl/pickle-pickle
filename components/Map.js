@@ -25,7 +25,7 @@ for (let i = 0; i < 20; i++) {
 
 
 
-export default function Map({data}) {
+export default function Map({data, long, lat}) {
   const mapRef = useRef();
   const navigation = useNavigation();
 
@@ -82,11 +82,19 @@ export default function Map({data}) {
         style={styles.map}
         onRegionChange={onRegionChange}
         initialRegion={{
-          latitude: 37.5665,
+          latitude: lat,
           latitudeDelta: 1,
-          longitude: 126.9780,
+          longitude: long,
           longitudeDelta: 1,
         }}
+        region={
+          {
+            latitude: lat,
+            latitudeDelta: 1,
+            longitude: long,
+            longitudeDelta: 1,
+          }
+        }
       >
         {showLocationsOfInterest()}
       </MapView>
