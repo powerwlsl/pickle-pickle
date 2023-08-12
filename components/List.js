@@ -58,12 +58,12 @@ const items = [
   },
 ];
 
-export default function List({data}) {
+export default function List({ data }) {
   const navigation = useNavigation()
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {data.map((item, index) => {
+      {data.length > 0 ? data.map((item, index) => {
         return (
           <View
             key={index}
@@ -100,7 +100,7 @@ export default function List({data}) {
                       <FeatherIcon color="#7B7C7E" name="phone" size={14} />
                       <TouchableOpacity
                         onPress={() => {
-                          call({number: item.phone, prompt: false, skipCanOpen: true}).catch(console.error)
+                          call({ number: item.phone, prompt: false, skipCanOpen: true }).catch(console.error)
                         }}
                       >
                         <Text className="ml-2 text-blue-600">
@@ -116,15 +116,19 @@ export default function List({data}) {
                     </View>
                   </View>
 
-                  <Text style={styles.cardPrice}>
-                    {/*${price.toLocaleString('en-US')} / month*/}
-                  </Text>
+                  {/* <Text style={styles.cardPrice}>
+                    ${price.toLocaleString('en-US')} / month
+                  </Text> */}
                 </View>
               </View>
             </TouchableOpacity>
           </View>
         );
-      })}
+      }) : <>
+        <Text className="text-center text-gray-500 mt-10">
+          해당 지역에 피클볼 코트가 없습니다.
+        </Text>
+      </>}
     </ScrollView>
   );
 }

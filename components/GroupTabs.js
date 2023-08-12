@@ -11,7 +11,7 @@ import {
 export default function GroupTabs({ onTabChange, numOfCourts }) {
   const [value, setValue] = React.useState(0);
   const tabs = [
-    { name: 'Map'},
+    { name: 'Map' },
     { name: 'List' }
   ];
 

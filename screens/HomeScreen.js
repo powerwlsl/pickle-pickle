@@ -1,19 +1,26 @@
-import React, {useState} from 'react';
-import {ActivityIndicator, SafeAreaView, StyleSheet, TextInput, TouchableOpacity, View,} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, SafeAreaView, StyleSheet, TextInput, TouchableOpacity, View, Text, ScrollView } from 'react-native';
 import FeatherIcon from 'react-native-vector-icons/Feather';
 import Map from '../components/Map';
 import GroupTabs from '../components/GroupTabs';
 import List from '../components/List';
-import {useNavigation} from '@react-navigation/native';
-import {useQuery} from "@tanstack/react-query";
-import {supabase} from "../lib/supabase";
+import { useNavigation } from '@react-navigation/native';
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "../lib/supabase";
 import * as Location from 'expo-location';
-
+import axios from 'axios';
+import { EXPO_PUBLIC_GOOGLE_API_KEY } from "@env";
 export default function HomeScreen() {
   const [currentTab, setCurrentTab] = useState(0);
   const navigation = useNavigation();
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
-  const [courts , setCourts] = useState([])
+  const [courts, setCourts] = useState([])
+  const [searchText, setSearchText] = useState("");
+  const [filteredRegions, setFilteredRegions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionClicked, setSuggestionClicked] = useState(false);
+
+
   const handleTabChange = (tab) => {
     setCurrentTab(tab);
   };
@@ -40,7 +47,7 @@ export default function HomeScreen() {
       setIsFetchingLocation(false)
       if (error) throw error;
       // Return an empty array as a default value
-      if (data.length === 0)  return [];
+      if (data.length === 0) return [];
 
       return data.map((court) => {
         return {
@@ -96,6 +103,51 @@ export default function HomeScreen() {
     };
   }
 
+  useEffect(() => {
+    if (suggestionClicked) {
+      setSuggestionClicked(false); // Reset it for future use
+      return; // Exit early from the effect
+    }
+
+    if (searchText.trim() !== "" && searchText) {
+      const handle = setTimeout(() => {
+        searchPlace(searchText);
+      }, 1000);  // wait for 1 second after user stops typing
+
+      // Cleanup function, it gets called whenever searchText changes.
+      return () => {
+        clearTimeout(handle);
+      }
+    } else {
+      setShowSuggestions(false);
+    }
+  }, [searchText]);
+
+
+  const searchPlace = async (query) => {
+    const endpoint = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${EXPO_PUBLIC_GOOGLE_API_KEY}&language=ko&region=kr`;
+
+    return axios.get(endpoint)
+      .then(response => {
+        const results = response.data.results.map((result) => {
+          return {
+            location: {
+              longitude: result.geometry.location.lng,
+              latitude: result.geometry.location.lat,
+            },
+            name: result.formatted_address.replace('대한민국', '')
+          }
+        })
+        setFilteredRegions(results);
+        setShowSuggestions(true);
+      })
+      .catch(error => {
+        // Handle error.
+        console.error("There was an error!", error);
+      });
+  }
+
+  const debouncedOnRegionChange = debounce(onRegionChange, 300);
 
   function onRegionChange(region) {
     setRegion(region)
@@ -105,11 +157,22 @@ export default function HomeScreen() {
       })
   }
 
-  const debouncedOnRegionChange = debounce(onRegionChange, 300);
+  const handleRegionClick = (region) => {
+
+    setSearchText(region.name);
+    setSuggestionClicked(true);
+    setShowSuggestions(false);
+    setRegion(region.location)
+    fetchCourts(region.location)
+      .then((data) => {
+        setCourts(data);
+      })
+  }
+
 
   if (isLoading) {
     return (
-      <View style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center', zIndex: 1000, backgroundColor: 'rgba(255,255,255,0.8)'}}>
+      <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center', zIndex: 1000, backgroundColor: 'rgba(255,255,255,0.8)' }}>
         <ActivityIndicator size="large" color="#3EC795" />
       </View>
     )
@@ -119,24 +182,36 @@ export default function HomeScreen() {
     <View style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 0, backgroundColor: '#FBFCFF' }} />
       {isFetchingLocation ? (
-        <View style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center', zIndex: 1000, backgroundColor: 'rgba(255,255,255,0.8)'}}>
+        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center', zIndex: 1000, backgroundColor: 'rgba(255,255,255,0.8)' }}>
           <ActivityIndicator size="large" color="#3EC795" />
         </View>
       ) : null}
+      <GroupTabs onTabChange={handleTabChange} numOfCourts={courts.length} />
+
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerSearch}>
             <View style={styles.headerSearchIcon}>
               <FeatherIcon color="#121A26" name="search" size={19} />
             </View>
+            <View className="flex-row">
+              <TextInput
+                autoCapitalize="words"
+                autoComplete="name"
+                value={searchText}
+                onChangeText={(text) => setSearchText(text)}
+                placeholder="서울시 종로구"
+                placeholderTextColor="#778599"
+                style={styles.headerSearchInput}
+              />
+              <View style={[styles.headerAction, { alignItems: 'flex-end' }]}>
+                <TouchableOpacity
+                  onPress={handleLocateMe}>
+                  <FeatherIcon name="navigation" size={20} color={"blue"} />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-            <TextInput
-              autoCapitalize="words"
-              autoComplete="name"
-              placeholder="서울시 종로구"
-              placeholderTextColor="#778599"
-              style={styles.headerSearchInput}
-            />
           </View>
 
           <View style={[styles.headerAction, { alignItems: 'flex-end' }]}>
@@ -145,8 +220,20 @@ export default function HomeScreen() {
               <FeatherIcon name="navigation" size={24} color={"blue"} />
             </TouchableOpacity>
           </View>
+          {showSuggestions && (
+            <ScrollView style={styles.suggestionsContainer}>
+              {filteredRegions.map((region, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.suggestionItem}
+                  onPress={() => handleRegionClick(region)}
+                >
+                  <Text>{region.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </View>
-        <GroupTabs onTabChange={handleTabChange} numOfCourts={courts.length} />
 
         <View style={styles.placeholder}>
           {currentTab === 0 ?
@@ -156,7 +243,7 @@ export default function HomeScreen() {
               onRegionChange={debouncedOnRegionChange}
             />
             :
-            <List data={courts}/>}
+            <List data={courts} />}
         </View>
         <TouchableOpacity
           className="absolute w-14 h-14 items-center justify-center right-5 bottom-5 bg-blue-500 rounded-full"
@@ -171,16 +258,16 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    marginBottom: 10,
-    marginHorizontal: 24,
-    marginTop: 10,
+    zIndex: 10,
+    // marginBottom: 10,
+    // marginHorizontal: 24,
+    // marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     // marginBottom: 24,
   },
   container: {
-    // padding: 24,
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: 0,
@@ -190,12 +277,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: 0,
+    zIndex: 1000, // <-- add a high zIndex
   },
+
   headerSearchInput: {
     backgroundColor: '#fff',
     width: '100%',
     height: 40,
-    borderRadius: 8,
+    // borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
     fontSize: 16,
@@ -206,9 +295,9 @@ const styles = StyleSheet.create({
       width: 4,
       height: 4,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 2,
+    // shadowOpacity: 0.2,
+    // shadowRadius: 8,
+    // elevation: 2,
   },
   headerSearchIcon: {
     position: 'absolute',
@@ -225,6 +314,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     alignItems: 'flex-start',
+    backgroundColor: '#fff',
+    paddingRight: 10,
     justifyContent: 'center',
   },
   placeholder: {
@@ -234,5 +325,27 @@ const styles = StyleSheet.create({
     height: 400,
     marginTop: 0,
     padding: 0,
+  },
+
+  suggestionsContainer: {
+    position: 'absolute',
+    top: 40, // Adjust this value based on the height of your TextInput
+    left: 0,
+    right: 0,
+    maxHeight: 400,
+    zIndex: 1000,
+    backgroundColor: 'white',
+    borderRadius: 5,
+    elevation: 3,  // Android Shadow
+    shadowColor: '#000',  // iOS Shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    padding: 10,
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
   },
 });
